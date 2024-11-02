@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flight Log Chatbot</title>
+  <style>
+    /* Basic styling for the chatbot layout */
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #f2f2f2;
+    }
+    #chat-container {
+      width: 100%;
+      max-width: 500px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+      background-color: #fff;
+      display: flex;
+      flex-direction: column;
+    }
+    #chat {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+    }
+    .bot-message, .user-message {
+      padding: 10px 15px;
+      margin-bottom: 10px;
+      border-radius: 12px;
+      max-width: 80%;
+    }
+    .bot-message {
+      background-color: #dfe7fd;
+      color: #333;
+      align-self: flex-start;
+    }
+    .user-message {
+      background-color: #a2d2ff;
+      color: #333;
+      align-self: flex-end;
+    }
+    #input-container {
+      display: flex;
+      padding: 10px;
+      border-top: 1px solid #ccc;
+    }
+    #input-container input,
+    #input-container button {
+      padding: 10px;
+      font-size: 16px;
+    }
+    #userInput {
+      flex: 1;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    button {
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .submit-button {
+      margin-left: 10px;
+      background-color: #4CAF50;
+      color: #fff;
+    }
+    .submit-button:hover {
+      background-color: #45a049;
+    }
+    .today-button {
+      background-color: #FFA500;
+      color: #fff;
+    }
+    .today-button:hover {
+      background-color: #FF8C00;
+    }
+  </style>
+</head>
+<body>
+  <div id="chat-container">
+    <div id="chat"></div>
+    <div id="input-container">
+      <input id="userInput" type="text" placeholder="Type your answer here..." />
+      <input id="dateInput" type="date" style="display: none;" />
+      <button class="today-button" id="todayButton" onclick="setToday()" style="display: none;">Today</button>
+      <button class="submit-button" onclick="submitInput()">Send</button>
+    </div>
+  </div>
+
+  <script>
+    const chat = document.getElementById('chat');
+    const userInput = document.getElementById('userInput');
+    const dateInput = document.getElementById('dateInput');
+    const todayButton = document.getElementById('todayButton');
+    let data = { instructor: '', student: '', date: '', flights: '', comments: '' };
+    let step = 0;
+
+    const questions = [
+      "Hello! Who is the instructor?",
+      "Great! What's the student's name?",
+      "What's the date of the session? (Select or type DD/MM/YYYY)",
+      "How many flights did you complete?",
+      "Any additional comments? (optional)"
+    ];
+
+    function botReply(message) {
+      const botMsg = document.createElement('div');
+      botMsg.className = 'bot-message';
+      botMsg.innerText = message;
+      chat.appendChild(botMsg);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function userReply(message) {
+      const userMsg = document.createElement('div');
+      userMsg.className = 'user-message';
+      userMsg.innerText = message;
+      chat.appendChild(userMsg);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function askQuestion() {
+      botReply(questions[step]);
+      if (step === 2) {
+        userInput.style.display = 'none';
+        dateInput.style.display = 'inline-block';
+        todayButton.style.display = 'inline-block';
+        userInput.value = '';
+      } else {
+        userInput.style.display = 'inline-block';
+        dateInput.style.display = 'none';
+        todayButton.style.display = 'none';
+      }
+    }
+
+    function isValidDate(date) {
+      const regex = /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[0-2])\/\d{4}$/;
+      return regex.test(date);
+    }
+
+    function setToday() {
+      const today = new Date();
+      const day = String(today.getDate()).padStart(2, '0');
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const year = today.getFullYear();
+      const todayFormatted = `${day}/${month}/${year}`;
+      dateInput.value = `${year}-${month}-${day}`;
+      userReply(todayFormatted);
+      data.date = todayFormatted;
+      step++;
+      askQuestion();
+    }
+
+    function submitInput() {
+      let input = step === 2 ? dateInput.value : userInput.value.trim();
+      if (!input && step !== 4) return;
+
+      if (step === 2 && input) {
+        const [year, month, day] = input.split('-');
+        input = `${day}/${month}/${year}`;
+        data.date = input;
+        userReply(input);
+      } else if (step === 4) {
+        data.comments = input;
+        userReply(input || "No comments");
+      } else {
+        userReply(input);
+        switch (step) {
+          case 0: data.instructor = input; break;
+          case 1: data.student = input; break;
+          case 3: data.flights = input; break;
+        }
+      }
+
+      step++;
+      if (step < questions.length) {
+        askQuestion();
+      } else {
+        botReply("Thank you! Saving your data...");
+        fetch('/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(result => {
+          botReply(result.status === 'success' ? "Data saved successfully!" : "Error saving data.");
+        })
+        .catch(() => botReply("Network error. Please try again."));
+      }
+
+      userInput.value = '';
+    }
+
+    userInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        submitInput();
+      }
+    });
+
+    askQuestion();
+  </script>
+</body>
+</html>

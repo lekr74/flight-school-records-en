@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Flight Log Results</title>
+  <style>
+    /* Styling for the table */
+    body { font-family: Arial, sans-serif; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    th { background-color: #f4f4f4; }
+  </style>
+</head>
+<body>
+  <h1>Flight Log Results</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>Instructor</th>
+        <th>Student</th>
+        <th>Date</th>
+        <th>Flights</th>
+        <th>Comments</th>
+      </tr>
+    </thead>
+    <tbody id="results"></tbody>
+  </table>
+  <script>
+    fetch('/results')
+      .then(response => response.json())
+      .then(data => {
+        const results = document.getElementById('results');
+        data.forEach(row => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${row.instructor}</td>
+            <td>${row.student}</td>
+            <td>${row.date}</td>
+            <td>${row.flights}</td>
+            <td>${row.comments || ''}</td>
+          `;
+          results.appendChild(tr);
+        });
+      });
+  </script>
+</body>
+</html>
